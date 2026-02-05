@@ -34,6 +34,7 @@ Given:
 - reference  (possibly dynamically infeasible) trajectory $\{{s'}_t\}_{t=0}^T$ which is the outcome of diffusion model,
 
 we solve the finite-horizon optimal control problem
+
 $$\min_{\{s_t,a_t\}}\sum_{t=0}^{T-1} \ell(s_t, a_t) + \ell_T(s_T)$$
 subject to
 $$s_{t+1} = f(s_t, a_t), s.t. a_t \in \mathcal{A}, \text{and }  s_0 \text{ is fixed}.$$
@@ -55,13 +56,14 @@ Dynamics consistency is enforced via **defect constraints**
 $$d_t = s_{t+1} - f(s_t, a_t).$$
 
 The optimization problem becomes
-$$\min_{\{s_t,a_t\}}$$
-$$\sum_{t=0}^{T-1} \ell(s_t,a_t) + \ell_T(s_T)$$
+
+$$\min_{\{s_t,a_t\}} \sum_{t=0}^{T-1} \ell(s_t,a_t) + \ell_T(s_T)
 \quad \text{s.t.} \quad
 d_t = 0,\;\; a_t \in \mathcal{A}.
 $$
 
 In practice, especially when $f$ is a black-box simulator, we enforce dynamics using a penalty
+
 $$
 J_{\text{MS}} =
 \sum_{t=0}^{T-1} \ell(s_t,a_t) + \ell_T(s_T)+ \sum_{t=0}^{T-1} \frac{\rho}{2} \|d_t\|^2.
@@ -83,6 +85,7 @@ B_t \approx \frac{\partial f}{\partial a}.
 $$
 
 Concretely, for a small perturbation $\varepsilon > 0$, the Jacobians are computed as
+
 $$
 A_t^{(i)} \approx \frac{f(s_t + \varepsilon e_i, a_t) - f(s_t, a_t)}{\varepsilon},
 \qquad
@@ -93,11 +96,9 @@ where $e_i$ and $e_j$ denote standard basis vectors in the state and action spac
 The stage and terminal costs are then quadratized around the nominal trajectory, yielding a local linear–quadratic approximation that is solved using the standard iLQR backward–forward pass.
 
 
-
 The resulting local LQR problem is solved using a backward Riccati pass, yielding affine feedback updates
-$$
-\delta a_t = k_t + K_t \delta s_t.
-$$
+
+$$\delta a_t = k_t + K_t \delta s_t.$$
 
 A forward rollout with line search is then performed, with actions projected onto the admissible set $\mathcal{A}$.
 
@@ -106,9 +107,9 @@ A forward rollout with line search is then performed, with actions projected ont
 ### Result
 
 The final output is a **smooth, dynamically feasible trajectory**
-$$
-\tau = \{(s_t, a_t)\}_{t=0}^{T-1}
-$$
+
+$$\tau = \{(s_t, a_t)\}_{t=0}^{T-1}$$
+
 that satisfies simulator dynamics and action constraints. This trajectory can be:
 - executed directly,
 - used as a warm-start for MPC,
