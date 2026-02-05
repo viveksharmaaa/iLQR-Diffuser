@@ -34,12 +34,12 @@ Given:
 - reference  (possibly dynamically infeasible) trajectory $\{{s'}_t\}_{t=0}^T$ which is the outcome of diffusion model,
 
 we solve the finite-horizon optimal control problem
-$$\min_{\{s_t,a_t\}}$$
-$$\sum_{t=0}^{T-1} \ell(s_t, a_t) + \ell_T(s_T)$$
+$$\min_{\{s_t,a_t\}}\sum_{t=0}^{T-1} \ell(s_t, a_t) + \ell_T(s_T)$$
 subject to
-$$s_{t+1} = f(s_t, a_t), \quad a_t \in \mathcal{A}, \quad s_0 \text{ is fixed}.$$
+$$s_{t+1} = f(s_t, a_t), s.t. a_t \in \mathcal{A}, \text{and }  s_0 \text{ is fixed}.$$
 
 We use quadratic tracking costs of the form
+
 $$\ell(s_t,a_t) = \tfrac{1}{2}\|s_t - \bar{s}_t\|_Q^2 + \tfrac{1}{2}\|a_t\|_R^2,
 \qquad
 \ell_T(s_T) = \tfrac{1}{2}\|s_T - \bar{s}_T\|_{Q_T}^2.
