@@ -31,7 +31,7 @@ Many planning algorithms produce collision-free or task-feasible **state sequenc
 Given:
 - initial state $s_0$,
 - planning horizon $T$,
-- reference  (possibly dynamically infeasible) trajectory $ \\{\bar{s}_0, \bar{s}_1, ...\\}$ which is the outcome of diffusion model,
+- reference  (possibly dynamically infeasible) trajectory $\\{\overline{s}_0, \overline{s}_1, ...\\}$ which is the outcome of diffusion model,
 
 we solve the finite-horizon optimal control problem
 
