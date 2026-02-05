@@ -77,6 +77,8 @@ This formulation improves numerical stability, allows poor initial guesses, and 
 
 At each iteration, the dynamics are locally linearized around the nominal trajectory.  
 Since the system dynamics are provided only through a **black-box discrete-time simulator**, the Jacobians are estimated using **finite differences**:
+
+
 $$
 \delta s_{t+1} \approx A_t \delta s_t + B_t \delta a_t,
 \quad
@@ -86,11 +88,12 @@ $$
 
 Concretely, for a small perturbation $\varepsilon > 0$, the Jacobians are computed as
 
-$$
-A_t^{(i)} \approx \frac{f(s_t + \varepsilon e_i, a_t) - f(s_t, a_t)}{\varepsilon},
+
+$$A_t^{(i)} \approx \frac{f(s_t + \varepsilon e_i, a_t) - f(s_t, a_t)}{\varepsilon},
 \qquad
 B_t^{(j)} \approx \frac{f(s_t, a_t + \varepsilon e_j) - f(s_t, a_t)}{\varepsilon},
 $$
+
 where $e_i$ and $e_j$ denote standard basis vectors in the state and action spaces, respectively.
 
 The stage and terminal costs are then quadratized around the nominal trajectory, yielding a local linear–quadratic approximation that is solved using the standard iLQR backward–forward pass.
@@ -107,6 +110,7 @@ A forward rollout with line search is then performed, with actions projected ont
 ### Result
 
 The final output is a **smooth, dynamically feasible trajectory**
+
 
 $$\tau = \{(s_t, a_t)\}_{t=0}^{T-1}$$
 
