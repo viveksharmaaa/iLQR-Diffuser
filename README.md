@@ -31,7 +31,7 @@ Many planning algorithms produce collision-free or task-feasible **state sequenc
 Given:
 - initial state $s_0$,
 - planning horizon $T$,
-- reference  (possibly dynamically infeasible) trajectory $\{{s'}_t\}_{t=0}^T$ which is the outcome of diffusion model,
+- reference  (possibly dynamically infeasible) trajectory $ \\{\bar{s}_0, \bar{s}_1, ...\\}$ which is the outcome of diffusion model,
 
 we solve the finite-horizon optimal control problem
 
@@ -59,7 +59,7 @@ The optimization problem becomes
 
 $$\min_{\{s_t,a_t\}} \sum_{t=0}^{T-1} \ell(s_t,a_t) + \ell_T(s_T)
 \quad \text{s.t.} \quad
-d_t = 0,\;\; a_t \in \mathcal{A}.
+d_t = 0,\; a_t \in \mathcal{A}.
 $$
 
 In practice, especially when $f$ is a black-box simulator, we enforce dynamics using a penalty
@@ -82,7 +82,7 @@ Since the system dynamics are provided only through a **black-box discrete-time 
 $$
 \delta s_{t+1} \approx A_t \delta s_t + B_t \delta a_t,
 \quad
-A_t \approx \frac{\partial f}{\partial s}, \;
+A_t \approx \frac{\partial f}{\partial s} \;
 B_t \approx \frac{\partial f}{\partial a}.
 $$
 
@@ -112,7 +112,8 @@ A forward rollout with line search is then performed, with actions projected ont
 The final output is a **smooth, dynamically feasible trajectory**
 
 
-$$\tau = \{(s_t, a_t)\}_{t=0}^{T-1}$$
+$$\tau = \\{(s_t, a_t)\\}_{t=0}^{T-1}$$
+
 
 that satisfies simulator dynamics and action constraints. This trajectory can be:
 - executed directly,
