@@ -1,9 +1,6 @@
-# DDAT: Diffusion policies enforcing Dynamically Admissible robot Trajectories
+# iLQR-Diff: Diffusion policies enforcing Dynamically Admissible robot Trajectories
 
 In this project we create a novel diffusion architecture to generate dynamically feasible robot trajectories by incorporating autoregressive projections in the training and inference phase of a diffusion transformer.
-
-[Paper](https://arxiv.org/pdf/2502.15043.pdf)          [Website](https://iconlab.negarmehr.com/DDAT/)
-
 
 
 ## Overview
@@ -12,9 +9,7 @@ Diffusion models are stochastic by nature.
 Thus, the trajectories they generate **cannot** satisfy exactly the equations of motions of robots.
 When deploying such *infeasible* trajectories, the actual robot diverges from the prediction and most likely fails to accomplish its task.
 Previous works have thus focused on replanning the entire trajectory very frequently.
-We propose to address the root cause of the problem by forcing our diffusion models to generate **fesible** trajectories.
-
-![infeasible trajectories diverge](docs/videos/GO2_smaller_gif.gif)
+We propose to address the root cause of the problem by forcing our diffusion models to generate **feasible** trajectories.
 
 
 ## Theory
@@ -33,20 +28,8 @@ These projectors are incorporated into the training and inference of our diffusi
 
 ## Organization
 
-- `docs` : all the elements to build the [project website](https://iconlab.negarmehr.com/DDAT/)
-- `code` : our implementation of DDAT with diffusion transformers, projectors, and trained models.
-
-
-## Citation
-```
-@inproceedings{bouvier2025ddat,
-        title = {DDAT: Diffusion Policies Enforcing Dynamically Admissible Robot Trajectories},
-        author = {Bouvier, Jean-Baptiste and Ryu, Kanghyun and Nagpal, Kartik and Liao, Qiayuan and Sreenath, Koushil and Mehr, Negar},
-        booktitle = {Robotics: Science and Systems (RSS)},
-        year = {2025}
-      }
-```
+- `code` : our implementation of iLQR with diffusion transformers, and trained models.
 
 ## Acknowledgments
 
-Our diffusion transformer architecture is largely based on the [AlignDiff code](https://github.com/ZibinDong/AlignDiff-ICLR2024/tree/main).
+Our code is largely modified from source code based on  [DDAT](https://github.com/labicon/DDAT).

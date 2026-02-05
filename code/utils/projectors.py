@@ -7,6 +7,7 @@ Created on Mon Sep 16 08:24:10 2024
 Trajectory projectors to make state trajectories admissible
 """
 
+
 import os
 import torch
 import cvxpy as cp
@@ -80,6 +81,10 @@ class Projector():
                 self.ref_states_id = [7, 8, 9, 10, 11, 12] # velocities and angular velocities indices in state
                 self.ref_vel_id = [0, 1, 2, 3, 4, 5] # velocities and angular velocities indices in qvel
                 print("The Reference Projector matches the velocities and angular velocities of the Quadcopter")
+            elif env.name == "Cartpole":
+                self.ref_states_id = [2,3] # velocities and angular velocities indices in state
+                self.ref_vel_id= [0,1] # velocities and angular velocities indices in qvel
+                print("The Reference Projector matches the velocities and angular velocities of the Cartpole")
             elif env.name in ["Hopper", "Walker", "HalfCheetah"]:
                 self.ref_vel_id = [2] # velocities and angular velocities indices in qvel
                 self.ref_states_id = [self.vel[2]] # velocities and angular velocities indices in state

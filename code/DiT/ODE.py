@@ -62,6 +62,7 @@ class ODE():
         assert modality in ["S", "SA", "A"], 'model must predict either states "S", states and actions "SA", or only actions "A" '
         self.modality = modality
         self.filename = f"{modality}_{self.is_conditional*'Cond_'}ODE_{self.task}_{self.projector_name}_specs_{self.specs}"
+        print(self.filename)
         
         self.state_size = env.state_size
         self.action_size = env.action_size
@@ -145,7 +146,10 @@ class ODE():
                 s, a = self.projector.project_traj(Trajs=pred_s, Ref_Trajs=ref_s, sigma=sigma, Actions=ref_a) 
             else:
                 s, a = self.projector.project_traj(Trajs=pred_s, sigma=sigma, Actions=pred_a)
-            
+
+            if self.projector == "iLQR" and condition is not None:
+                s, a = self.projector.project_traj_iLQR(Trajs=pred_s, sigma=sigma, Actions=ref_a, condition=condition)
+
             s = self.normalizer.normalize(s)
             if self.modality == "SA":
                 pred = torch.cat((x, a), dim=2)
@@ -296,6 +300,7 @@ class ODE():
                     s, a = projector.project_traj(Trajs=s, Ref_Trajs=s, sigma=sigma, Actions=a)
                 else:
                     s, a = projector.project_traj(Trajs=s, sigma=sigma, Actions=a)
+
                 
                 x = self.normalizer.normalize(s)
                 if self.modality == "SA":
@@ -307,6 +312,7 @@ class ODE():
     
     
     def save(self, extra:str = ""):
+        print("Saving")
         to_save = {'model': self.F.state_dict(),
                    'model_ema': self.F_ema.state_dict(),
                    'sigma_data': self.sigma_data}
@@ -321,6 +327,7 @@ class ODE():
     
     def load(self, extra:str = ""):    
         name = self.task+"/trained_models/" + self.filename + extra + ".pt"
+        #name = '/home/sharma/Projects/DDAT/code/Cartpole/trained_models/S_Cond_ODE_Cartpole_Adm_proj_sigma_0.0021_specs_64_4_3.pt'
         if os.path.isfile(name):
             print("Loading " + name)
             checkpoint = torch.load(name, map_location=self.device, weights_only=True)

@@ -14,11 +14,14 @@ from HalfCheetah.half_cheetah import CheetahEnv
 from Quadcopter.quadcopter import QuadcopterEnv
 from GO1.GO1_env import Go1Env
 from GO2.GO2_env import Go2Env
+from Cartpole.cartpole_env import CartpoleEnv
+from Acrobot.acrobot_env import AcrobotEnv
+from gymnasium.envs.classic_control import CartPoleEnv
 
 from utils.projectors import Reference_Projector, Admissible_Projector, SA_Projector, Action_Projector
 
 
-#%% 
+#%%
 
 def make_env(env_name: str, modality: str):
     """
@@ -29,7 +32,7 @@ def make_env(env_name: str, modality: str):
     env_name : Name of the desired environment to create
         Should be one of "Hopper", "Walker", "HalfCheetah", "Quadcopter", "GO1", "GO2"
     modality : prediction modality of the diffusion in ["S", "SA", "A"]
-        
+
     Returns
     -------
     env : Gym-like environment
@@ -37,39 +40,49 @@ def make_env(env_name: str, modality: str):
     H : horizon, default length of each trajectories in the environment
     N_trajs : default number of trajectories in the environment's datasets
     """
-    assert env_name  in ["Hopper", "Walker", "HalfCheetah", "Quadcopter", "GO1", "GO2"], "Environment name not recognized"
-    
+    assert env_name  in ["Hopper", "Walker", "HalfCheetah", "Quadcopter", "GO1", "GO2","Cartpole","Acrobot"], "Environment name not recognized"
+
     if env_name == "Hopper":
         env = HopperEnv()
         model_size = {"d_model": 64, "n_heads": 4, "depth": 3}
-        H = 300 
-        
+        H = 300
+
+    elif env_name == "Cartpole":
+        env= CartpoleEnv()
+        model_size = {"d_model": 256, "n_heads": 4, "depth": 3} #64
+        H = 1200
+
+    elif env_name == "Acrobot":
+        env= AcrobotEnv()
+        model_size = {"d_model": 64, "n_heads": 4, "depth": 3}
+        H = 1000
+
     elif env_name == "Walker":
         env = WalkerEnv()
         model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
         H = 300
-        
+
     elif env_name == "HalfCheetah":
         env = CheetahEnv()
         model_size = {"d_model": 256, "n_heads": 4, "depth": 4}
         H = 200
         if modality == "A": # less depth to compensate for the extra parameters of the conditioning
             model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
-        
+
     elif env_name == "Quadcopter":
         env = QuadcopterEnv()
         model_size = {"d_model": 256, "n_heads": 4, "depth": 4}
         H = 200
         if modality == "A": # less depth to compensate for the extra parameters of the conditioning
             model_size = {"d_model": 256, "n_heads": 4, "depth": 3}
-        
+
     elif env_name == "GO1":
         env = Go1Env()
         model_size = {"d_model": 256, "n_heads": 4, "depth": 6}
         H = 500
         if modality == "A": # less depth to compensate for the extra parameters of the conditioning
             model_size = {"d_model": 256, "n_heads": 4, "depth": 5}
-        
+
     elif env_name == "GO2":
         env = Go2Env()
         model_size = {"d_model": 256, "n_heads": 4, "depth": 6}
@@ -77,7 +90,10 @@ def make_env(env_name: str, modality: str):
         if modality == "A": # less depth to compensate for the extra parameters of the conditioning
             model_size = {"d_model": 256, "n_heads": 4, "depth": 5}
 
-    N_trajs = 1000
+    if env_name == "Cartpole" or env_name == "Acrobot":
+        N_trajs = 10
+    else:
+        N_trajs = 1000
 
     return env, model_size, H, N_trajs
 
@@ -89,13 +105,13 @@ def make_env(env_name: str, modality: str):
 def load_datasets(env_name:str, modality:str, conditioning:str,
                   N_trajs:int, H:int, device):
     """
-    Load a dataset of trajectories to train the diffusion models, 
+    Load a dataset of trajectories to train the diffusion models,
     along with the dataset of conditioning attributes
 
     Parameters
     ----------
     env_name : name of the environment
-    modality : whether DiT predicts states "S", states and actions "SA" or only actions "A" 
+    modality : whether DiT predicts states "S", states and actions "SA" or only actions "A"
     conditioning: attributes types on which the model is conditioned None, "s0", "cmd", "s0_cmd"
     N_trajs : number of trajectories in the dataset
     H : horizon, length of the trajectories
@@ -105,14 +121,15 @@ def load_datasets(env_name:str, modality:str, conditioning:str,
     -------
     x : torch.tensor of the dataset of size (N_trajs, H, modality_size)
     attr : torch.tensor of the conditioning attributes of size (N_trajs, attr_dim)
-    attr_dim : int  Dimension of the conditioning attributes 
+    attr_dim : int  Dimension of the conditioning attributes
     """
-    
+
     assert modality  in ["S", "SA", "A"], "Modality name not recognized"
     assert conditioning in [None, "s0", "cmd", "s0_cmd"], "Conditioning not recognized"
-    
+
     # Training dataset
     dataset = np.load(f"{env_name}/datasets/{env_name}_{N_trajs}trajs_{H}steps.npz")
+    #dataset = np.load("/home/sharma/Projects/DDAT/code/Cartpole/datasets/Cartpole_10trajs_1200steps.npz")
     if modality == "S":
         x = dataset['Trajs'][:, :H] # cut the length of trajectories to H
     elif modality == "SA":
@@ -120,7 +137,7 @@ def load_datasets(env_name:str, modality:str, conditioning:str,
     else: # modality == "A"
         x = dataset['Actions'][:, :H]
     x = torch.FloatTensor(x).to(device)
-        
+
     # Conditioning attributes
     if conditioning == "s0":
         attr = dataset['Trajs'][:, 0] # initial states of trajectories
@@ -130,7 +147,7 @@ def load_datasets(env_name:str, modality:str, conditioning:str,
         attr = np.concatenate((s0, cmd), dim=1)
     elif conditioning == "cmd":
         attr = dataset['Cmd']
-    
+
     if conditioning is None:
         attr, attr_dim = None, None
     else:
@@ -164,18 +181,18 @@ def load_proj(proj_name:str, env, device:str, modality:str, dataset=None,
     """
     assert proj_name in [None, "Ref", "Adm", "SA", "A"], "Projector name not recognized"
     assert modality in ["S", "SA", "A"], "Modality not recognized"
-    
+
     if proj_name is None:
         proj = None
     else:
         assert modality != "A", "The action-only diffusion model does not support projections"
-    
+
     if proj_name == "Ref":
         proj = Reference_Projector(env, sigma_min=0.0021, sigma_max=0.2, device=device)
-        
+
     elif proj_name == "Adm":
         proj = Admissible_Projector(env, sigma_min=0.0021, device=device)
-        
+
     elif proj_name == "SA":
         assert modality == "SA", "The state-action projector requires SA modality"
         proj = SA_Projector(env, sigma_min=0.0021, sigma_max=0.2, device=device)
@@ -184,9 +201,9 @@ def load_proj(proj_name:str, env, device:str, modality:str, dataset=None,
             trajs = dataset[:, :, :env.state_size] # sequences of states in SA dataset
             actions = dataset[:, :, env.state_size:] # sequences of actions in SA dataset
             proj.train(Trajs=trajs, Actions=actions, extra=extra_name)
-    
+
     elif proj_name == "A":
         assert modality == "SA", "The action projector requires SA modality"
         proj = Action_Projector(env, sigma_min=0.0021, sigma_max=0.2, device=device)
-        
+
     return proj

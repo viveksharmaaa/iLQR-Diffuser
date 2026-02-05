@@ -165,6 +165,9 @@ class QuadcopterEnv():
         wMotor = np.clip(wMotor, self.minWmotor, self.maxWmotor) # this clip shouldn't occur within the dynamics
         th = self.kTh * wMotor ** 2 # thrust
         to = self.kTo * wMotor ** 2 # torque
+
+        def smooth_sign(x, alpha=50.0):
+            return -np.tanh(alpha * x)
     
         # state derivates (from sympy.mechanics derivation)
         xd = np.stack(
@@ -176,17 +179,17 @@ class QuadcopterEnv():
                 0.5 * p * q0 - 0.5 * q * q3 + 0.5 * q2 * r,
                 0.5 * p * q3 + 0.5 * q * q0 - 0.5 * q1 * r,
                 -0.5 * p * q2 + 0.5 * q * q1 + 0.5 * q0 * r,
-                (self.Cd * np.sign(-xdot) * xdot**2
+                (self.Cd * smooth_sign(-xdot) * xdot**2 #np.sign(-xdot)
                     - 2 * (q0 * q2 + q1 * q3) * (th[0] + th[1] + th[2] + th[3])
                 )
                 /  self.mB, # xdd
                 (
-                     self.Cd * np.sign(-ydot) * ydot**2
+                     self.Cd * smooth_sign(-ydot) * ydot**2 #np.sign(-ydot)
                     + 2 * (q0 * q1 - q2 * q3) * (th[0] + th[1] + th[2] + th[3])
                 )
                 /  self.mB, # ydd
                 (
-                    - self.Cd * np.sign(zdot) * zdot**2
+                    - self.Cd * smooth_sign(zdot) * zdot**2 #np.sign(zdot)
                     - (th[0] + th[1] + th[2] + th[3])
                     * (q0**2 - q1**2 - q2**2 + q3**2)
                     + self.g *  self.mB
@@ -257,7 +260,7 @@ class QuadcopterEnv():
     # Plotting functions
     def plot_traj(self, Traj, title:str = ""):
         """Plots the xy trajectory of the Quadcopter."""
-        plot_traj(self, Traj, title)
+        plot_traj(self, Traj, title,'--')
 
     
     def traj_comparison(self, traj_1, label_1, traj_2, label_2, title:str = "",
@@ -279,6 +282,191 @@ class QuadcopterEnv():
         """
         traj_comparison(self, traj_1, label_1, traj_2, label_2, title,
                         traj_3, label_3, traj_4, label_4, legend_loc)
+
+    import numpy as np
+
+    def quad_analytic_jacobian(self,u):
+        """
+        Analytic Jacobian A=∂xd/∂x, B=∂xd/∂u for your 'xd' (the derivative vector).
+        state ∈ R^17 with indices:
+          0:x, 1:y, 2:z, 3:q0, 4:q1, 5:q2, 6:q3,
+          7:xdot, 8:ydot, 9:zdot, 10:p, 11:q, 12:r,
+          13:w1, 14:w2, 15:w3, 16:w4
+        u ∈ R^4 maps to [w1dot, w2dot, w3dot, w4dot] via u/IRzz.
+        # p is a dict of constants: kTh, kTo, mB, g, Cd, dym, dxm, IRzz, IB (3x3),
+        #                            min/maxWmotor (unused in Jacobian), usePrecession (0/1)
+        Returns:
+          A (17x17), B (17x4)
+        """
+        # Unpack state
+        x, y, z, q0, q1, q2, q3, xdot, ydot, zdot, p_body, q_body, r_body, w1, w2, w3, w4 = self.state
+        # u1, u2, u3, u4 = u
+
+        # Unpack params
+        kTh = self.kTh
+        kTo = self.kTo
+        mB = self.mB
+        g = self.g
+        Cd = self.Cd
+        dym = self.dym
+        dxm = self.dxm
+        IRzz = self.IRzz
+        IB = self.IB
+        usePrec = self.usePrecession
+
+        # Helpful quantities
+        w = np.array([w1, w2, w3, w4])
+        th = kTh * w ** 2  # per-rotor thrust
+        to = kTo * w ** 2  # per-rotor torque
+        S = th.sum()  # total thrust
+
+        # Signs for drag (a.e. derivative; define at 0 as 0)
+        sx = 0.0 if xdot == 0 else np.sign(xdot)
+        sy = 0.0 if ydot == 0 else np.sign(ydot)
+        sz = 0.0 if zdot == 0 else np.sign(zdot)
+
+        # Precompute inertia scalars
+        IBxx, IByy, IBzz = IB[0, 0], IB[1, 1], IB[2, 2]
+        a_x = (IByy - IBzz) / IBxx
+        a_y = (IBzz - IBxx) / IByy
+        a_z = (IBxx - IByy) / IBzz
+
+        # Initialize Jacobians
+        A = np.zeros((17, 17))
+        B = np.zeros((17, 4))
+
+        # -----------------------------
+        # Kinematics: xdot, ydot, zdot
+        # -----------------------------
+        A[0, 7] = 1.0  # d(xdot)/d(xdot)
+        A[1, 8] = 1.0
+        A[2, 9] = 1.0
+
+        # ---------------------------------------
+        # Quaternion kinematics (omega to qdot)
+        # q0dot = -0.5*(p*q1 + q*q2 + r*q3)
+        # q1dot =  0.5*(p*q0 - q*q3 + r*q2)
+        # q2dot =  0.5*(p*q3 + q*q0 - r*q1)
+        # q3dot =  0.5*(-p*q2 + q*q1 + r*q0)
+        # ---------------------------------------
+        # ∂q0dot/∂q1 = -0.5 p, ∂q0dot/∂q2 = -0.5 q, ∂q0dot/∂q3 = -0.5 r
+        A[3, 4] = -0.5 * p_body
+        A[3, 5] = -0.5 * q_body
+        A[3, 6] = -0.5 * r_body
+        # ∂q0dot/∂p = -0.5 q1, ∂/∂q = -0.5 q2, ∂/∂r = -0.5 q3
+        A[3, 10] = -0.5 * q1
+        A[3, 11] = -0.5 * q2
+        A[3, 12] = -0.5 * q3
+
+        # q1dot
+        A[4, 3] = 0.5 * p_body
+        A[4, 6] = 0.5 * r_body
+        A[4, 5] = -0.5 * q_body
+        A[4, 10] = 0.5 * q0
+        A[4, 11] = -0.5 * q3
+        A[4, 12] = 0.5 * q2
+
+        # q2dot
+        A[5, 6] = 0.5 * p_body
+        A[5, 3] = 0.5 * q_body
+        A[5, 4] = -0.5 * r_body
+        A[5, 10] = 0.5 * q3
+        A[5, 11] = 0.5 * q0
+        A[5, 12] = -0.5 * q1
+
+        # q3dot
+        A[6, 5] = -0.5 * p_body
+        A[6, 4] = 0.5 * q_body
+        A[6, 3] = 0.5 * r_body
+        A[6, 10] = -0.5 * q2
+        A[6, 11] = 0.5 * q1
+        A[6, 12] = 0.5 * q0
+
+        # -----------------------------------
+        # Translational accelerations (xdd)
+        # xdd = ( Cd*sign(-xdot)*xdot^2 - 2(q0 q2 + q1 q3) * S ) / mB
+        # ydd = ( Cd*sign(-ydot)*ydot^2 + 2(q0 q1 - q2 q3) * S ) / mB
+        # zdd = ( -Cd*sign(zdot)*zdot^2
+        #         - S*(q0^2 - q1^2 - q2^2 + q3^2) + g*mB ) / mB
+        # -----------------------------------
+
+        # Drag derivatives (a.e.): d/dv [Cd*sign(-v)*v^2] = -2*Cd*|v|
+        A[7 + 1, 7] = (-2.0 * Cd * abs(xdot)) / mB  # row 8 wrt xdot (xdd w.r.t xdot)
+        A[8 + 1, 8] = (-2.0 * Cd * abs(ydot)) / mB  # row 9 wrt ydot
+        A[9 + 1, 9] = (-2.0 * Cd * abs(zdot)) / mB  # row 10 wrt zdot, with the leading minus already in zdd
+
+        # Shorthands for quaternion combos
+        c1 = -2.0 * (q0 * q2 + q1 * q3)  # coefficient in xdd multiplying S
+        c2 = 2.0 * (q0 * q1 - q2 * q3)  # coefficient in ydd multiplying S
+        c3 = -(q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3)  # coefficient in zdd multiplying S
+
+        # ∂xdd/∂q*
+        A[8, 3] = (-2.0 * q2) * S / mB
+        A[8, 5] = (-2.0 * q0) * S / mB
+        A[8, 4] = (-2.0 * q3) * S / mB
+        A[8, 6] = (-2.0 * q1) * S / mB
+
+        # ∂ydd/∂q*
+        A[9, 3] = (2.0 * q1) * S / mB
+        A[9, 4] = (2.0 * q0) * S / mB
+        A[9, 5] = (-2.0 * q3) * S / mB
+        A[9, 6] = (-2.0 * q2) * S / mB
+
+        # ∂zdd/∂q*
+        A[10, 3] = (-2.0 * q0) * S / mB
+        A[10, 4] = (2.0 * q1) * S / mB
+        A[10, 5] = (2.0 * q2) * S / mB
+        A[10, 6] = (-2.0 * q3) * S / mB
+
+        # ∂xdd/∂w_i via S (S = kTh * sum(2*w_i*w_i?) → dS/dw_i = 2*kTh*w_i)
+        dSdw = 2.0 * kTh * w
+        A[8, 13:17] = (c1 / mB) * dSdw
+        A[9, 13:17] = (c2 / mB) * dSdw
+        A[10, 13:17] = (c3 / mB) * dSdw
+
+        # -----------------------------------
+        # Angular accelerations (p,q,r) dot
+        # pd = [ a_x*q*r - usePrec*IRzz*(w1-w2+w3-w4)*q + (th1 - th2 - th3 + th4)*dym ] / IBxx
+        # qd = [ a_y*p*r + usePrec*IRzz*(w1-w2+w3-w4)*p + (th1 + th2 - th3 - th4)*dxm ] / IByy
+        # rd = [ a_z*p*q - to1 + to2 - to3 + to4 ] / IBzz
+        # -----------------------------------
+
+        # ∂pd/∂q, ∂pd/∂r
+        A[11, 11] = (a_x * r_body) / IBxx
+        A[11, 12] = (a_x * q_body) / IBxx
+
+        # ∂pd/∂w_i from gyro (linear in w) and thrust-asymmetry (through th = kTh w^2)
+        s_gyro = np.array([1, -1, 1, -1], dtype=float)  # (w1 - w2 + w3 - w4)
+        d_pd_dwi_gyro = (-usePrec * IRzz * q_body / IBxx) * s_gyro
+        d_pd_dwi_th = (dym / IBxx) * (2.0 * kTh * w) * np.array([1, -1, -1, 1], float)
+        A[11, 13:17] = d_pd_dwi_gyro + d_pd_dwi_th
+
+        # qd partials
+        A[12, 10] = (a_y * r_body) / IByy
+        A[12, 12] = (a_y * p_body) / IByy
+        d_qd_dwi_gyro = (usePrec * IRzz * p_body / IByy) * s_gyro
+        d_qd_dwi_th = (dxm / IByy) * (2.0 * kTh * w) * np.array([1, 1, -1, -1], float)
+        A[12, 13:17] = d_qd_dwi_gyro + d_qd_dwi_th
+
+        # rd partials
+        A[13, 10] = (a_z * q_body) / IBzz
+        A[13, 11] = (a_z * p_body) / IBzz
+        # torque asymmetry: -to1 + to2 - to3 + to4, to_i = kTo w_i^2 ⇒ d/dw_i = ± 2*kTo*w_i
+        A[13, 13:17] = (1.0 / IBzz) * (2.0 * kTo * w) * np.array([-1, +1, -1, +1], float)
+
+        # -----------------------
+        # Motor first-order rates
+        # wdot_i = u[i]/IRzz  (no state dependence)
+        # -----------------------
+        B[14, 0] = 1.0 / IRzz
+        B[15, 1] = 1.0 / IRzz
+        B[16, 2] = 1.0 / IRzz
+        B[17 - 1, 3] = 1.0 / IRzz  # index 16 (w4dot)
+
+        # All other B entries = 0
+        # A entries for positions already set; remaining rows (x,y,z) have no direct state deps.
+
+        return A, B
 
          
 

@@ -65,7 +65,7 @@ class HopperEnv():
                        nondeterministic=False,      # If the observation of an environment cannot be repeated with the same initial state, random number generator state and actions.
                        max_episode_steps=None,      # The max number of steps that the environment can take before truncation
                        order_enforce=False,         # If to enforce the order of :meth:`gymnasium.Env.reset` before :meth:`gymnasium.Env.step` and :meth:`gymnasium.Env.render` functions
-                       autoreset=False,             # If to automatically reset the environment on episode end
+                       autoreset=True,             # If to automatically reset the environment on episode end
                        disable_env_checker=True,    # If to disable the environment checker wrapper in :meth:`gymnasium.make`, by default False (runs the environment checker)
                        kwargs={'render_mode': render_mode}, # Additional keyword arguments passed to the environment during initialisation
                        additional_wrappers=(),      #  A tuple of additional wrappers applied to the environment (WrapperSpec)

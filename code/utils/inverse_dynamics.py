@@ -78,6 +78,47 @@ class InverseDynamics():
             self.env.reset_to(s0)
             pred_s1, reward, done, _, _ = self.env.step(a)
 
+        elif self.env.name == "Cartpole":  # model-based inverse dynamics using finite difference
+            # unpack state vectors
+            x0, th0, xdot0, thdot0 = s0
+            x1, th1, xdot1, thdot1 = s1
+
+            # finite-difference cart acceleration
+            xddot = (xdot1 - xdot0) / self.dt
+
+            # parameters from env
+            m_c = self.env.m_c
+            m_p = self.env.m_p
+            l = self.env.l
+            g = self.env.g
+
+            # inverse dynamics: solve for required force u
+            a = (m_c + m_p * np.sin(th0) ** 2) * xddot \
+                - m_p * np.sin(th0) * (l * thdot0 ** 2 + g * np.cos(th0))
+
+            # reset to initial state
+            self.env.reset_to(s0)
+
+            # apply the inferred control and get predicted next state
+            pred_s1, reward, done, _, _ = self.env.step(a)
+
+        # elif self.env.name == "Cartpole":  # model-based inverse dynamics for cart acceleration
+        #     # Extract states
+        #     x0 = s0[self.cart_states]  # typically indices [position, velocity]
+        #     x1 = s1[self.cart_states]
+        #
+        #     # Estimate cart acceleration (finite difference)
+        #     a_cart = (x1[1] - x0[1]) / self.dt  # (v1 - v0)/dt
+        #
+        #     # Convert acceleration to equivalent force input using known mass
+        #     F = self.m_c * a_cart  # m_c: cart mass
+        #
+        #     # Reset environment to s0
+        #     self.env.reset_to(s0)
+        #
+        #     # Step environment forward using this inferred control
+        #     pred_s1, reward, done, _, _ = self.env.step(F)
+
         elif self.env.name in ["Hopper", "Walker"]:
             a, pred_s1, reward, done = self._action(s0, s1, a0)
             if norm(pred_s1 - s1) > self.tol:
@@ -195,12 +236,12 @@ class InverseDynamics():
         reward = 0
         pbar = tqdm(range(H-1))
         pbar.set_description(f'{self.env.name} Inverse Dynamics')
-        for i in range(H-1):            
+        for i in range(H-1):
             Actions[i], Admissible_traj[i+1], r, done = self.action(Admissible_traj[i], traj[i+1], pred_actions[i])
             state_norm_dif += norm(Admissible_traj[i+1] - traj[i+1])
             reward += r
             pbar.update(1)
-            if done: 
+            if done:
                 state_norm_dif = np.inf
                 break
             
