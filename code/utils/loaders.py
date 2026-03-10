@@ -18,7 +18,7 @@ from Cartpole.cartpole_env import CartpoleEnv
 from Acrobot.acrobot_env import AcrobotEnv
 from gymnasium.envs.classic_control import CartPoleEnv
 
-from utils.projectors import Reference_Projector, Admissible_Projector, SA_Projector, Action_Projector
+from utils.projectors import Reference_Projector, Admissible_Projector, SA_Projector, Action_Projector, iLQR_Projector
 
 
 #%%
@@ -128,8 +128,8 @@ def load_datasets(env_name:str, modality:str, conditioning:str,
     assert conditioning in [None, "s0", "cmd", "s0_cmd"], "Conditioning not recognized"
 
     # Training dataset
-    dataset = np.load(f"{env_name}/datasets/{env_name}_{N_trajs}trajs_{H}steps.npz")
-    #dataset = np.load("/home/sharma/Projects/DDAT/code/Cartpole/datasets/Cartpole_10trajs_1200steps.npz")
+    #dataset = np.load(f"{env_name}/datasets/{env_name}_{N_trajs}trajs_{H}steps.npz")
+    dataset = np.load("/home/sharma/Projects/DDAT/code/Quadcopter/datasets/Quadcopter_1000trajs_200steps.npz")
     if modality == "S":
         x = dataset['Trajs'][:, :H] # cut the length of trajectories to H
     elif modality == "SA":
@@ -179,7 +179,7 @@ def load_proj(proj_name:str, env, device:str, modality:str, dataset=None,
     -------
     loaded projector
     """
-    assert proj_name in [None, "Ref", "Adm", "SA", "A"], "Projector name not recognized"
+    assert proj_name in [None, "Ref", "Adm", "SA", "A","iLQR"], "Projector name not recognized"
     assert modality in ["S", "SA", "A"], "Modality not recognized"
 
     if proj_name is None:
@@ -192,6 +192,10 @@ def load_proj(proj_name:str, env, device:str, modality:str, dataset=None,
 
     elif proj_name == "Adm":
         proj = Admissible_Projector(env, sigma_min=0.0021, device=device)
+
+    elif proj_name == "iLQR":
+       # assert  modality == "S", "The state projector requires S modality"
+        proj = iLQR_Projector(env, sigma_min=0.0021, device=device)
 
     elif proj_name == "SA":
         assert modality == "SA", "The state-action projector requires SA modality"

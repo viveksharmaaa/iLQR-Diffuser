@@ -127,6 +127,8 @@ def traj_comparison(env, traj_1, label_1, traj_2, label_2, title="",
     plt.xlabel("x")
     plt.ylabel("y")
     plt.show()
+    plt.savefig(f"{env.name}_traj_comparison.png", dpi=600,bbox_inches='tight')
+   # plt.savefig("traj_comparison.png",dpi=600)
     
     
 

@@ -130,7 +130,8 @@ class ODE():
             mask = None
         else:
             mask = (torch.rand(*condition.shape, device=self.device) > 0.2).int()
-        pred = self.D(x + eps, sigma, condition, mask)            
+        pred = self.D(x + eps, sigma, condition, mask)
+        #Check error between x and pred, e = ||x - pred||_2
         
         if self.projector is not None:
             pred_s = self.normalizer.unnormalize(pred[:, :, :self.state_size]) # predicted states    
@@ -144,15 +145,21 @@ class ODE():
             
             if self.projector.reference:
                 s, a = self.projector.project_traj(Trajs=pred_s, Ref_Trajs=ref_s, sigma=sigma, Actions=ref_a) 
+            elif'iLQR' in self.projector_name:
+                print("Using I-LQR")
+                s, a = self.projector.project_traj_ilqr(Trajs=pred_s, Ref_Trajs=None, sigma=sigma, Actions=ref_a)
             else:
+                print(self.projector_name)
+                print("Something else")
                 s, a = self.projector.project_traj(Trajs=pred_s, sigma=sigma, Actions=pred_a)
 
-            if self.projector == "iLQR" and condition is not None:
-                s, a = self.projector.project_traj_iLQR(Trajs=pred_s, sigma=sigma, Actions=ref_a, condition=condition)
+            # if self.projector == "iLQR" and condition is not None:
+            #     s, a = self.projector.project_traj_iLQR(Trajs=pred_s, Ref_Trajs = None, sigma=sigma, Actions=ref_a) #condition=condition)
 
             s = self.normalizer.normalize(s)
             if self.modality == "SA":
-                pred = torch.cat((x, a), dim=2)
+                pred = torch.cat((s, a), dim=2) #was #s
+
             else: # "S"
                 pred = s
         
@@ -215,6 +222,7 @@ class ODE():
                 attr = nor_attr[idx].clone()
             else:
                 attr = None
+            print(x.shape)
             loss, grad_norm = self.update(x, attr)
             loss_avg += loss
             if (step+1) % 10 == 0:
@@ -298,6 +306,8 @@ class ODE():
                 if projector.reference:
                     # use the sampled traj as reference after training to minimize deviations from projections
                     s, a = projector.project_traj(Trajs=s, Ref_Trajs=s, sigma=sigma, Actions=a)
+                elif 'iLQR' in self.projector_name:
+                    s,a = projector.project_traj_ilqr(Trajs=s,Ref_Trajs=None, sigma=sigma, Actions=a)
                 else:
                     s, a = projector.project_traj(Trajs=s, sigma=sigma, Actions=a)
 
