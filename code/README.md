@@ -1,6 +1,7 @@
-# DDAT: Diffusion policies enforcing Dynamically Admissible robot Trajectories
+# iLQR-Diffuser: Diffusion Trajectory Generation with iLQR-Based Dynamic Feasibility
+In this project, we propose a novel diffusion-based trajectory generation architecture that produces **dynamically feasible** robot trajectories by integrating a **multiple-shooting iLQR projection** step into both training and inference of a diffusion transformer.
+Our approach combines a diffusion transformer with a multiple-shooting iLQR projection layer that enforces consistency with robot dynamics and actuation limits.
 
-In this project we create a novel diffusion architecture to generate dynamically feasible robot trajectories using projections and diffusion transformers.
 
 ## Model specifications
 
@@ -40,18 +41,10 @@ Each environment has its own folder containing the environment code and plotting
 
 ## Citation
 ```
-@inproceedings{bouvier2025ddat,
-        title = {DDAT: Diffusion Policies Enforcing Dynamically Admissible Robot Trajectories},
-        author = {Bouvier, Jean-Baptiste and Ryu, Kanghyun and Nagpal, Kartik and Liao, Qiayuan and Sreenath, Koushil and Mehr, Negar},
-        booktitle = {arxiv.org/abs/2502.15043},
-        year = {2025}
-      }
+TBD
 ```
 
 ## Acknowledgments
 
-Our diffusion transformer architecture is largely based on the [AlignDiff code](https://github.com/ZibinDong/AlignDiff-ICLR2024/tree/main).
+Our code is largely modified from source code based on  [DDAT](https://github.com/labicon/DDAT).
 
-
-
-Note: The code has been refactored for better readability. If you encounter any problems, feel free to email bouvier3@berkeley.edu
